@@ -1,0 +1,6 @@
+Moments the clip must show:
+[x] 1. Kingdom HUD (crown + coin count) and the Royal Bow firing at purple Greed creatures in the first seconds.
+[x] 2. A Greed dies as an ink puddle and drops spinning gold coins; the player grabs them (coin count goes up).
+[x] 3. A vagrant is paid a coin and becomes an Archer (Archers counter goes up, archers shoot Greed).
+[ ] 4. A treasure chest (replaces the barrel) shot open: gold burst and coins. Chest and coin piles seen; the burst frame is weak/unverified.
+[ ] 5. A big Greed Breeder spawns small Greeds. Unverified on footage.

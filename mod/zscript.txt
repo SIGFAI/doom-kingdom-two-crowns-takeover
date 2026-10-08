@@ -1,0 +1,526 @@
+version "4.14"
+
+// Kingdom Two Crowns Takeover: the Greed invades, coins drop, vagrants become archers.
+
+class KCoin : Inventory
+{
+	Default { Inventory.MaxAmount 99; Inventory.InterHubAmount 99; }
+}
+
+class KCoinPickup : CustomInventory
+{
+	Default
+	{
+		Radius 12; Height 16; +INVENTORY.ALWAYSPICKUP;
+		Inventory.PickupSound "kc/coin"; Inventory.PickupMessage "";
+		Scale 0.9;
+	}
+	States
+	{
+	Spawn:
+		COIN ABCB 5 Bright;
+		Loop;
+	Pickup:
+		TNT1 A 0
+		{
+			A_GiveInventory("KCoin", 1);
+			A_GiveInventory("Health", 3);
+			for (int i = 0; i < 5; i++)
+				A_SpawnParticle(0xFFD23A, SPF_FULLBRIGHT, 18, 4, 0, frandom(-6,6), frandom(-6,6), frandom(10,24), frandom(-1,1), frandom(-1,1), frandom(1,3), 0, 0, -0.2, 1, -0.05);
+		}
+		Stop;
+	}
+	override void PostBeginPlay()
+	{
+		Super.PostBeginPlay();
+		// coins pop up out of whatever dropped them, then settle
+		vel = (frandom(-3, 3), frandom(-3, 3), frandom(4, 7));
+	}
+}
+
+class KCoinShot : Actor
+{
+	Default
+	{
+		Radius 8; Height 8; Speed 14; Damage 5; Projectile; +RANDOMIZE; +FORCEXYBILLBOARD;
+		SeeSound "kc/greedbite"; DeathSound "kc/coin"; Scale 0.8;
+	}
+	States
+	{
+	Spawn:
+		COIN ABCD 3 Bright;
+		Loop;
+	Death:
+		TNT1 A 0 A_SpawnItemEx("KCoinPickup", 0, 0, 8);
+		TNT1 A 1;
+		Stop;
+	}
+}
+
+class KArrow : Actor
+{
+	Default
+	{
+		Radius 6; Height 6; Speed 60; Projectile; +RANDOMIZE; +NOEXTREMEDEATH; +FORCEXYBILLBOARD;
+		DamageFunction (random(2, 4) * 5);
+		SeeSound "kc/bowshot"; DeathSound "kc/arrowhit"; Scale 1.0;
+	}
+	States
+	{
+	Spawn:
+		ARRW A 1 Bright A_SpawnParticle(0xFFE27A, SPF_FULLBRIGHT, 12, 5, 0, 0, 0, 0, frandom(-0.5,0.5), frandom(-0.5,0.5), 0.3, 0, 0, 0, 0.9, -0.08);
+		Loop;
+	Death:
+		TNT1 A 0
+		{
+			for (int i = 0; i < 8; i++)
+				A_SpawnParticle(0xFFD23A, SPF_FULLBRIGHT, 14, 4, 0, 0, 0, 0, frandom(-3,3), frandom(-3,3), frandom(0,4), 0, 0, -0.3, 1, -0.07);
+		}
+		TNT1 A 2;
+		Stop;
+	}
+}
+
+class KArcherArrow : KArrow
+{
+	Default { Speed 40; DamageFunction (random(1, 3) * 5); }
+}
+
+class KBow : DoomWeapon replaces Pistol
+{
+	Default
+	{
+		Weapon.SelectionOrder 1900; Weapon.AmmoType "Clip"; Weapon.AmmoUse 0; Weapon.AmmoGive 0;
+		Weapon.SlotNumber 2; Tag "Royal Bow"; +WEAPON.WIMPY_WEAPON;
+		Inventory.PickupMessage "You got the Royal Bow!";
+	}
+	States
+	{
+	Spawn:
+		CRWN A -1;
+		Stop;
+	Ready:
+		BOWW A 1 A_WeaponReady;
+		Loop;
+	Deselect:
+		BOWW A 1 A_Lower;
+		Loop;
+	Select:
+		BOWW A 1 A_Raise;
+		Loop;
+	Fire:
+		BOWW B 2 { A_FireProjectile("KArrow", 0, false, 0, 6); A_StartSound("kc/bowshot", CHAN_WEAPON); A_GunFlash(); }
+		BOWW B 4;
+		BOWW A 4;
+		BOWW A 0 A_ReFire;
+		Goto Ready;
+	Flash:
+		TNT1 A 2 A_Light1;
+		TNT1 A 0 A_Light0;
+		Stop;
+	}
+}
+
+class Greedling : Actor replaces DoomImp
+{
+	Default
+	{
+		Health 60; Radius 20; Height 52; Speed 5; PainChance 160; Mass 100; Scale 1.1;
+		MONSTER; +FLOORCLIP;
+		SeeSound "kc/greedsight"; PainSound "kc/greedsight"; DeathSound "kc/greeddie"; ActiveSound "kc/greedsight";
+		Tag "Greed"; Obituary "%o was robbed by the Greed."; MeleeRange 56;
+	}
+
+	void InkBurst(int n)
+	{
+		for (int i = 0; i < n; i++)
+			A_SpawnParticle(0x7A3FA0, 0, 22, 5, 0, frandom(-8,8), frandom(-8,8), frandom(8,40), frandom(-3,3), frandom(-3,3), frandom(1,4), 0, 0, -0.25, 1, -0.04);
+	}
+
+	void DropCoins(int n)
+	{
+		for (int i = 0; i < n; i++) Spawn("KCoinPickup", pos + (0, 0, 16));
+	}
+
+	// The Greed snatches a coin out of the player's purse: it pops out on the floor.
+	void Snatch()
+	{
+		if (!target || target.player == null) return;
+		if (Distance3D(target) > MeleeRange + target.radius + 8) return;
+		if (target.CountInv("KCoin") > 0)
+		{
+			target.TakeInventory("KCoin", 1);
+			let c = Spawn("KCoinPickup", target.pos + (0, 0, 40));
+			if (c) c.vel = (frandom(-4,4), frandom(-4,4), 8);
+		}
+	}
+
+	States
+	{
+	Spawn:
+		GRDL A 10 A_Look;
+		Loop;
+	See:
+		GRDL A 4 A_Chase;
+		GRDL B 4 A_Chase;
+		GRDL C 4 A_Chase;
+		GRDL D 4 A_Chase;
+		Loop;
+	Melee:
+		GRDL E 4 A_FaceTarget;
+		GRDL F 6 { A_CustomMeleeAttack(random(2, 4) * 3, "kc/greedbite", "kc/greedbite"); Snatch(); }
+		Goto See;
+	Missile:
+		GRDL E 6 A_FaceTarget;
+		GRDL F 3 { A_StartSound("kc/greedbite"); A_FaceTarget(); vel.z = 5; A_Recoil(-9); }
+		GRDL F 10;
+		Goto See;
+	Pain:
+		GRDL G 3 InkBurst(5);
+		GRDL G 3 A_Pain;
+		Goto See;
+	Death:
+		GRDL G 3 { A_Scream(); InkBurst(14); }
+		GRDL H 6 { A_NoBlocking(); DropCoins(random(1, 2)); }
+		GRDL H -1;
+		Stop;
+	}
+}
+
+class GreedSnatcher : Greedling replaces ZombieMan
+{
+	Default { Health 30; Speed 7; Scale 0.9; Radius 16; Height 44; PainChance 200; Tag "Greed Snatcher"; }
+	States
+	{
+	Spawn:
+		SNAT A 10 A_Look;
+		Loop;
+	See:
+		SNAT A 4 A_Chase;
+		SNAT B 4 A_Chase;
+		SNAT C 4 A_Chase;
+		SNAT D 4 A_Chase;
+		Loop;
+	Melee:
+		SNAT E 4 A_FaceTarget;
+		SNAT F 6 { A_CustomMeleeAttack(random(2, 4) * 3, "kc/greedbite", "kc/greedbite"); Snatch(); }
+		Goto See;
+	Missile:
+		SNAT E 6 A_FaceTarget;
+		SNAT F 3 { A_StartSound("kc/greedbite"); A_FaceTarget(); vel.z = 5; A_Recoil(-9); }
+		SNAT F 10;
+		Goto See;
+	Pain:
+		SNAT G 3 InkBurst(5);
+		SNAT G 3 A_Pain;
+		Goto See;
+	Death:
+		SNAT G 3 { A_Scream(); InkBurst(14); }
+		SNAT H 6 { A_NoBlocking(); DropCoins(random(1, 2)); }
+		SNAT H -1;
+		Stop;
+	}
+}
+
+class GreedBrute : Greedling replaces ShotgunGuy
+{
+	Default { Health 110; Speed 4; Scale 1.4; Radius 26; Height 68; PainChance 100; Tag "Greed Brute"; }
+	States
+	{
+	Spawn:
+		BRUT A 10 A_Look;
+		Loop;
+	See:
+		BRUT A 4 A_Chase;
+		BRUT B 4 A_Chase;
+		BRUT C 4 A_Chase;
+		BRUT D 4 A_Chase;
+		Loop;
+	Melee:
+		BRUT E 4 A_FaceTarget;
+		BRUT F 6 { A_CustomMeleeAttack(random(2, 4) * 3, "kc/greedbite", "kc/greedbite"); Snatch(); }
+		Goto See;
+	Missile:
+		BRUT E 6 A_FaceTarget;
+		BRUT F 3 { A_StartSound("kc/greedbite"); A_FaceTarget(); vel.z = 5; A_Recoil(-9); }
+		BRUT F 10;
+		Goto See;
+	Pain:
+		BRUT G 3 InkBurst(5);
+		BRUT G 3 A_Pain;
+		Goto See;
+	Death:
+		BRUT G 3 { A_Scream(); InkBurst(14); }
+		BRUT H 6 { A_NoBlocking(); DropCoins(random(1, 2)); }
+		BRUT H -1;
+		Stop;
+	}
+}
+
+class GreedFloater : Greedling replaces Cacodemon
+{
+	Default
+	{
+		Health 120; Speed 5; Scale 1.2; Radius 24; Height 56; PainChance 128; Tag "Greed Floater";
+		+FLOAT; +NOGRAVITY;
+	}
+	States
+	{
+	Spawn:
+		FLTR A 10 A_Look;
+		Loop;
+	See:
+		FLTR A 4 A_Chase;
+		FLTR B 4 A_Chase;
+		FLTR C 4 A_Chase;
+		FLTR D 4 A_Chase;
+		Loop;
+	Melee:
+		FLTR E 4 A_FaceTarget;
+		FLTR F 6 { A_CustomMeleeAttack(random(2, 4) * 3, "kc/greedbite", "kc/greedbite"); Snatch(); }
+		Goto See;
+	Missile:
+		FLTR E 8 A_FaceTarget;
+		FLTR F 6 A_SpawnProjectile("KCoinShot", 30, 0);
+		FLTR E 8;
+		Goto See;
+	Pain:
+		FLTR G 3 InkBurst(5);
+		FLTR G 3 A_Pain;
+		Goto See;
+	Death:
+		FLTR G 3 { A_Scream(); InkBurst(14); }
+		FLTR H 6 { A_NoBlocking(); DropCoins(random(1, 2)); }
+		FLTR H -1;
+		Stop;
+	}
+}
+
+class GreedBreeder : Greedling replaces BaronOfHell
+{
+	Default
+	{
+		Health 500; Speed 4; Scale 1.9; Radius 34; Height 88; PainChance 60; Mass 600; Tag "Greed Breeder";
+		MeleeRange 70;
+	}
+	States
+	{
+	Missile:
+		GRDL E 10 A_FaceTarget;
+		GRDL F 8
+		{
+			A_StartSound("kc/greedsight");
+			for (int i = 0; i < 2; i++)
+			{
+				let g = Spawn("GreedSnatcher", pos + (frandom(-50, 50), frandom(-50, 50), 4));
+				if (g && !g.TestMobjLocation()) g.Destroy();
+				else if (g) g.target = target;
+			}
+			InkBurst(10);
+		}
+		GRDL E 14;
+		Goto See;
+	Death:
+		GRDL G 4 { A_Scream(); InkBurst(30); }
+		GRDL H 8 { A_NoBlocking(); DropCoins(8); }
+		GRDL H -1;
+		Stop;
+	}
+}
+
+class KArcher : Actor
+{
+	Default
+	{
+		Health 90; Radius 14; Height 48; Speed 7; PainChance 120; Mass 80; Scale 1.0;
+		MONSTER; +FRIENDLY; -COUNTKILL; +FLOORCLIP;
+		PainSound "kc/arrowhit"; DeathSound "kc/greeddie"; Tag "Archer";
+	}
+	States
+	{
+	Spawn:
+		ARCH A 10 A_Look;
+		Loop;
+	See:
+		ARCH A 5 A_Chase;
+		ARCH B 5 A_Chase;
+		ARCH C 5 A_Chase;
+		ARCH D 5 A_Chase;
+		Loop;
+	Missile:
+		ARCH E 6 A_FaceTarget;
+		ARCH F 8 A_SpawnProjectile("KArcherArrow", 34, 0);
+		ARCH E 6;
+		Goto See;
+	Pain:
+		ARCH C 4;
+		ARCH C 4 A_Pain;
+		Goto See;
+	Death:
+		ARCH G 5 A_Scream;
+		ARCH G 5 A_NoBlocking;
+		ARCH G -1;
+		Stop;
+	}
+}
+
+class KVagrant : Actor
+{
+	Default
+	{
+		Health 30; Radius 14; Height 54; Speed 5; PainChance 255; Mass 80; Scale 1.0;
+		MONSTER; +FRIENDLY; -COUNTKILL; +FLOORCLIP;
+		PainSound "kc/arrowhit"; DeathSound "kc/greeddie"; Tag "Vagrant";
+	}
+	States
+	{
+	Spawn:
+		VAGR A 10 A_Look;
+		Loop;
+	See:
+		VAGR A 8 A_Chase;
+		VAGR B 8 A_Chase;
+		Loop;
+	Pain:
+		VAGR C 4;
+		VAGR C 4 A_Pain;
+		Goto See;
+	Death:
+		VAGR C 4 A_Scream;
+		VAGR D 4 A_NoBlocking;
+		VAGR D -1;
+		Stop;
+	}
+}
+
+class KChest : Actor replaces ExplosiveBarrel
+{
+	Default
+	{
+		Health 25; Radius 16; Height 30; Scale 1.0; PainChance 255;
+		+SOLID; +SHOOTABLE; +NOBLOOD; +DONTGIB; +ACTIVATEMCROSS; +NOICEDEATH;
+		DeathSound "kc/chest"; Tag "Treasure Chest";
+	}
+	States
+	{
+	Spawn:
+		CHST A -1;
+		Stop;
+	Pain:
+		CHST A 3
+		{
+			for (int i = 0; i < 4; i++)
+				A_SpawnParticle(0xFFD23A, SPF_FULLBRIGHT, 14, 4, 0, frandom(-8,8), frandom(-8,8), 28, frandom(-2,2), frandom(-2,2), frandom(2,5), 0, 0, -0.3, 1, -0.07);
+		}
+		Goto Spawn;
+	Death:
+		TNT1 A 0
+		{
+			A_Scream();
+			A_NoBlocking();
+			A_Explode(120, 140);
+			for (int i = 0; i < 6; i++) Spawn("KCoinPickup", pos + (0, 0, 20));
+			for (int i = 0; i < 24; i++)
+				A_SpawnParticle(0xFFD23A, SPF_FULLBRIGHT, 28, 6, 0, frandom(-10,10), frandom(-10,10), 20, frandom(-5,5), frandom(-5,5), frandom(2,8), 0, 0, -0.3, 1, -0.03);
+		}
+		BEXP A 4 Bright;
+		BEXP BCD 4 Bright;
+		BEXP E 4 Bright;
+		Stop;
+	}
+}
+
+class KingdomHandler : EventHandler
+{
+	int greedKills;
+	int archers, vagrants;
+	int toastUntil;
+	String toastText;
+
+	override void PlayerEntered(PlayerEvent e)
+	{
+		let p = players[e.PlayerNumber].mo;
+		if (!p) return;
+		p.GiveInventory("KBow", 1);
+		p.A_SelectWeapon("KBow");
+		p.GiveInventory("KCoin", 3);
+		Toast("THE GREED IS COMING. PROTECT THE CROWN!", 120);
+	}
+
+	void Toast(String s, int tics)
+	{
+		toastText = s;
+		toastUntil = level.maptime + tics;
+	}
+
+	override void WorldThingDied(WorldEvent e)
+	{
+		if (!e.Thing) return;
+		if (e.Thing is "Greedling")
+		{
+			greedKills++;
+			if (greedKills % 3 == 0) VagrantArrives();
+		}
+	}
+
+	void VagrantArrives()
+	{
+		let p = players[consoleplayer].mo;
+		if (!p || archers + vagrants >= 6) return;
+		for (int i = 0; i < 8; i++)
+		{
+			double a = frandom(0, 360);
+			double d = frandom(160, 260);
+			let v = Actor.Spawn("KVagrant", p.pos + (cos(a) * d, sin(a) * d, 0));
+			if (!v) continue;
+			if (v.TestMobjLocation()) { Toast("A vagrant wanders in. Give them a coin!", 90); return; }
+			v.Destroy();
+		}
+	}
+
+	override void WorldTick()
+	{
+		let p = players[consoleplayer].mo;
+		if (!p || level.maptime % 5) return;
+		int a = 0, v = 0;
+		let it = ThinkerIterator.Create("Actor");
+		Actor m;
+		while (m = Actor(it.Next()))
+		{
+			if (m is "KArcher" && m.health > 0) a++;
+			else if (m is "KVagrant" && m.health > 0)
+			{
+				v++;
+				if (p.CountInv("KCoin") > 0 && m.Distance3D(p) < 130) Recruit(m, p);
+			}
+		}
+		archers = a; vagrants = v;
+	}
+
+	void Recruit(Actor vag, Actor p)
+	{
+		p.TakeInventory("KCoin", 1);
+		let ar = Actor.Spawn("KArcher", vag.pos);
+		if (ar)
+		{
+			ar.angle = vag.angle;
+			ar.A_StartSound("kc/recruit", CHAN_VOICE);
+			for (int i = 0; i < 16; i++)
+				ar.A_SpawnParticle(0xFFD23A, SPF_FULLBRIGHT, 30, 6, 0, frandom(-8,8), frandom(-8,8), frandom(0,40), frandom(-2,2), frandom(-2,2), frandom(2,5), 0, 0, -0.1, 1, -0.03);
+		}
+		vag.Destroy();
+		Toast("A vagrant became an Archer!", 90);
+	}
+
+	override void RenderOverlay(RenderEvent e)
+	{
+		let p = players[consoleplayer].mo;
+		if (!p) return;
+		screen.DrawTexture(TexMan.CheckForTexture("CRWNA0", TexMan.Type_Any), false, 6, 4, DTA_VirtualWidth, 320, DTA_VirtualHeight, 200, DTA_TopOffset, 0, DTA_LeftOffset, 0, DTA_DestWidth, 30, DTA_DestHeight, 24);
+		screen.DrawTexture(TexMan.CheckForTexture("COINA0", TexMan.Type_Any), false, 42, 8, DTA_VirtualWidth, 320, DTA_VirtualHeight, 200, DTA_TopOffset, 0, DTA_LeftOffset, 0, DTA_DestWidth, 16, DTA_DestHeight, 16);
+		screen.DrawText(SmallFont, Font.CR_GOLD, 31, 3, String.Format("x %d", p.CountInv("KCoin")), DTA_VirtualWidth, 160, DTA_VirtualHeight, 100);
+		screen.DrawText(SmallFont, Font.CR_TAN, 8, 32, String.Format("Archers: %d", archers), DTA_VirtualWidth, 320, DTA_VirtualHeight, 200);
+		if (level.maptime < toastUntil)
+			screen.DrawText(BigFont, Font.CR_GOLD, 160 - BigFont.StringWidth(toastText) / 2, 40, toastText, DTA_VirtualWidth, 320, DTA_VirtualHeight, 200);
+	}
+}
