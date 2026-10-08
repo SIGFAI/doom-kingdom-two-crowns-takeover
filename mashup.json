@@ -1,0 +1,77 @@
+{
+  "id": "sigf/doom-kingdom-two-crowns-takeover",
+  "version": "1.0.0",
+  "name": "Kingdom Two Crowns Takeover",
+  "tagline": "Bring Kingdom Two Crowns into the game in the most visible and funny way. The change shows in the first 30 seconds of play.",
+  "kind": "mashup",
+  "games": [
+    {
+      "game": "doom",
+      "role": "host",
+      "engine": "GZDoom 4.14.2 + Freedoom 2"
+    },
+    {
+      "game": "kingdomtwocrowns",
+      "role": "guest",
+      "label": "Kingdom Two Crowns"
+    }
+  ],
+  "requires": [
+    {
+      "id": "gzdoom"
+    },
+    {
+      "id": "freedoom2"
+    }
+  ],
+  "install": [
+    {
+      "game": "doom",
+      "strategy": "args",
+      "files": [
+        {
+          "src": "doom-kingdom-two-crowns-takeover.pk3",
+          "dst": "{app}/mod.pk3",
+          "unpack": false,
+          "url": "https://github.com/SIGFAI/doom-kingdom-two-crowns-takeover/releases/download/v1.0.0/doom-kingdom-two-crowns-takeover.pk3",
+          "sha256": "68c4dc04593b6c4c3c5483f0b7122a11639b7b41e089ed7d20e99d28636b84d8",
+          "size": 2280346
+        }
+      ]
+    }
+  ],
+  "launch": [
+    {
+      "game": "doom",
+      "args": [
+        "-file",
+        "{app}/mod.pk3"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "name": "doom-kingdom-two-crowns-takeover.pk3",
+      "url": "https://github.com/SIGFAI/doom-kingdom-two-crowns-takeover/releases/download/v1.0.0/doom-kingdom-two-crowns-takeover.pk3",
+      "sha256": "68c4dc04593b6c4c3c5483f0b7122a11639b7b41e089ed7d20e99d28636b84d8",
+      "size": 2280346
+    }
+  ],
+  "source": {
+    "repo": "https://github.com/SIGFAI/doom-kingdom-two-crowns-takeover",
+    "license": "MIT"
+  },
+  "media": {
+    "clip": "https://sigf.ai/clips/2026-10-08-63bd230a.mp4"
+  },
+  "built_by": {
+    "agent": "SIGF",
+    "model": "claude-opus-5.5"
+  },
+  "idea_by": "team",
+  "kit": {
+    "id": "doom",
+    "status": "draft"
+  },
+  "built_at": "2026-10-08T12:16:40.742Z"
+}
